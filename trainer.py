@@ -1,9 +1,10 @@
 import torch
 import numpy as np
+import scipy
 
 
 
-def fit(train_loader, val_loader, dataloader, refloader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, log_interval, metrics=[],
+def fit(train_loader, cheat_loader, val_loader, dataloader, refloader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, log_interval, metrics=[],
         start_epoch=0):
     text_file = open("triplet_50.txt", "w")
     """
@@ -18,6 +19,27 @@ def fit(train_loader, val_loader, dataloader, refloader, model, loss_fn, optimiz
     for epoch in range(0, start_epoch):
         scheduler.step()
 
+    # cheat for one epoch
+    epoch = -1
+    train_loss, metrics = train_epoch(cheat_loader, model, loss_fn, optimizer, cuda, log_interval, metrics)
+
+    message = 'Epoch: {}/{}. Train set: Average loss: {:.4f}'.format(epoch + 1, n_epochs, train_loss)
+    for metric in metrics:
+        message += '\t{}: {}'.format(metric.name(), metric.value())
+    calcAcc = False
+    if epoch % 5 == 0:
+        calcAcc = True
+    val_loss, metrics = test_epoch(val_loader, dataloader, refloader, model, loss_fn, cuda, metrics, calcAcc, text_file)
+    val_loss /= len(val_loader)
+
+    message += '\nEpoch: {}/{}. Validation set: Average loss: {:.4f}'.format(epoch + 1, n_epochs,
+                                                                             val_loss)
+    for metric in metrics:
+        message += '\t{}: {}'.format(metric.name(), metric.value())
+
+    print(message)
+
+    # normal training
     for epoch in range(start_epoch, n_epochs):
         scheduler.step()
 
@@ -96,7 +118,7 @@ def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, met
 
 def test_epoch(val_loader, dataloader, refloader, model, loss_fn, cuda, metrics, calcAcc, text_file):
     with torch.no_grad():
-        embed_d = 3
+        embed_d = 1000
         for metric in metrics:
             metric.reset()
         model.eval()
@@ -156,7 +178,7 @@ def test_epoch(val_loader, dataloader, refloader, model, loss_fn, cuda, metrics,
                     for class_ in refloader.dataset.classes:
                         if id_ == refloader.dataset.class_to_idx[class_]:
                             ref_idx_to_class[k] = class_
-                    k+= 1
+                    k += 1
                 #k += len(images)
             correct = 0
             for i in range(len(embeddings)):
@@ -165,7 +187,7 @@ def test_epoch(val_loader, dataloader, refloader, model, loss_fn, cuda, metrics,
                 predicted_class = -1
                 for j, ref_embedding in enumerate(ref_embeddings):
                     # EMBEDDING COMPARISON
-                    curr_dist = np.linalg.norm(embedding - ref_embedding)
+                    curr_dist = scipy.spatial.distance.cosine(embedding - ref_embedding)
                     if curr_dist < min_dist:
                         min_dist = curr_dist
                         predicted_class = j

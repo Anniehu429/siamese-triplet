@@ -1,4 +1,3 @@
-
 import torchvision
 from torchvision.datasets import MNIST
 from torchvision import transforms
@@ -20,6 +19,9 @@ from metrics import AccumulatedAccuracyMetric
 from datasets import TripletFolder
 batch_size = 32
 kwargs = {'num_workers': 0, 'pin_memory': True} if cuda else {}
+import ssl
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 def extract_embeddings(dataloader, model):
     with torch.no_grad():
@@ -40,7 +42,6 @@ train_dataset = torchvision.datasets.ImageFolder(
     root = './FID-prepped/train',
     transform=transforms.Compose(
         [
-         
         torchvision.transforms.Resize((224,224)),
         torchvision.transforms.RandomRotation(3),
          torchvision.transforms.ToTensor(),
@@ -49,6 +50,19 @@ train_dataset = torchvision.datasets.ImageFolder(
         ]
     )
 )
+cheat_dataset = torchvision.datasets.ImageFolder(
+    root='./FID-prepped/cheat',
+    transform=transforms.Compose(
+        [
+            torchvision.transforms.Resize((224, 224)),
+            torchvision.transforms.RandomRotation(3),
+            torchvision.transforms.ToTensor(),
+            transforms.Lambda(lambda x: x / 255.),
+            normalize,
+        ]
+    )
+)
+
 test_dataset = torchvision.datasets.ImageFolder(
     root = './FID-prepped/test',
     transform=transforms.Compose(
@@ -75,8 +89,12 @@ ref_dataset = torchvision.datasets.ImageFolder(
 
 triplet_train_dataset = TripletFolder(train_dataset, True)
 triplet_test_dataset = TripletFolder(test_dataset, False)
+triplet_cheat_dataset = TripletFolder(cheat_dataset, True)
+
+triplet_cheat_loader = torch.utils.data.DataLoader(triplet_cheat_dataset, batch_size=batch_size, shuffle=True, **kwargs)
 triplet_train_loader = torch.utils.data.DataLoader(triplet_train_dataset, batch_size=batch_size, shuffle=True, **kwargs)
 triplet_test_loader = torch.utils.data.DataLoader(triplet_test_dataset, batch_size=batch_size, shuffle=False, **kwargs)
+
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, **kwargs)
 ref_loader = torch.utils.data.DataLoader(ref_dataset, batch_size=batch_size, shuffle=False, **kwargs)
 # Set up the network and training parameters
@@ -87,7 +105,7 @@ margin = 100.
 #embedding_net = EmbeddingNet()
 import torchvision.models as models
 # THE MODEL
-resnet = models.resnet18(pretrained = True)
+vgg19 = models.vgg19(pretrained = True)
 #num_ftrs = resnet.fc.in_features
 #resnet.fc = nn.Linear(num_ftrs, 3)
 count = 0
@@ -100,7 +118,7 @@ for child in resnet.children():
         for param in child.parameters():
             param.requires_grad = False
 '''
-model = TripletNet(resnet)
+model = TripletNet(vgg19)
 print(model)
 if cuda:
     model.cuda()
@@ -109,7 +127,7 @@ for child in model.children():
     count += 1
 i = 0
 for child in model.children():
-    if i < count - 3:
+    if i < count - 1:
         for param in child.parameters():
             param.requires_grad = False
     i += 1
@@ -120,4 +138,4 @@ optimizer = optim.Adam(model.parameters(), lr=lr)
 scheduler = lr_scheduler.StepLR(optimizer, 30, gamma=0.1, last_epoch=-1)
 n_epochs = 1000000
 log_interval = 1
-fit(triplet_train_loader, triplet_test_loader, test_loader, ref_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, log_interval)
+fit(triplet_train_loader, triplet_cheat_loader, triplet_test_loader, test_loader, ref_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, log_interval)
