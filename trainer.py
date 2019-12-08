@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-import scipy
+import scipy.spatial
 
 
 
@@ -40,7 +40,7 @@ def fit(train_loader, cheat_loader, val_loader, dataloader, refloader, model, lo
     print(message)
 
     # normal training
-    for epoch in range(start_epoch, n_epochs):
+    for epoch in range(1, n_epochs):
         scheduler.step()
 
         # Train stage
@@ -117,8 +117,9 @@ def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, met
 
 
 def test_epoch(val_loader, dataloader, refloader, model, loss_fn, cuda, metrics, calcAcc, text_file):
+    calcAcc = True;
     with torch.no_grad():
-        embed_d = 1000
+        embed_d = 3
         for metric in metrics:
             metric.reset()
         model.eval()
@@ -187,7 +188,7 @@ def test_epoch(val_loader, dataloader, refloader, model, loss_fn, cuda, metrics,
                 predicted_class = -1
                 for j, ref_embedding in enumerate(ref_embeddings):
                     # EMBEDDING COMPARISON
-                    curr_dist = scipy.spatial.distance.cosine(embedding - ref_embedding)
+                    curr_dist = scipy.spatial.distance.cosine(embedding, ref_embedding)
                     if curr_dist < min_dist:
                         min_dist = curr_dist
                         predicted_class = j

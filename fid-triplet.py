@@ -12,7 +12,6 @@ from trainer import fit
 import numpy as np
 cuda = torch.cuda.is_available()
 
-print(cuda)
 import matplotlib
 import matplotlib.pyplot as plt
 from networks import EmbeddingNet, ClassificationNet
@@ -46,7 +45,7 @@ train_dataset = torchvision.datasets.ImageFolder(
         torchvision.transforms.Resize((224,224)),
         torchvision.transforms.RandomRotation(3),
          torchvision.transforms.ToTensor(),
-         transforms.Lambda(lambda x: x/255.),   
+         transforms.Lambda(lambda x: x/255.),
          normalize,
         ]
     )
@@ -65,12 +64,12 @@ cheat_dataset = torchvision.datasets.ImageFolder(
 )
 
 test_dataset = torchvision.datasets.ImageFolder(
-    root = './FID-prepped/test',
+    root = './FID-prepped/test300',
     transform=transforms.Compose(
         [
         torchvision.transforms.Resize((224,224)),
          torchvision.transforms.ToTensor(),
-         transforms.Lambda(lambda x: x/255.),   
+         transforms.Lambda(lambda x: x/255.),
          normalize,
         ]
     )
@@ -82,7 +81,7 @@ ref_dataset = torchvision.datasets.ImageFolder(
         [
         torchvision.transforms.Resize((224,224)),
          torchvision.transforms.ToTensor(),
-         transforms.Lambda(lambda x: x/255.),   
+         transforms.Lambda(lambda x: x/255.),
          normalize,
         ]
     )
@@ -106,7 +105,7 @@ margin = 100.
 #embedding_net = EmbeddingNet()
 import torchvision.models as models
 # THE MODEL
-vgg19 = models.vgg19(pretrained = True)
+vgg19 = models.vgg19(pretrained=True)
 #num_ftrs = resnet.fc.in_features
 #resnet.fc = nn.Linear(num_ftrs, 3)
 count = 0
@@ -137,6 +136,6 @@ loss_fn = TripletLoss(margin)
 lr = 1e-5
 optimizer = optim.Adam(model.parameters(), lr=lr)
 scheduler = lr_scheduler.StepLR(optimizer, 30, gamma=0.1, last_epoch=-1)
-n_epochs = 1000000
+n_epochs = 2
 log_interval = 1
 fit(triplet_train_loader, triplet_cheat_loader, triplet_test_loader, test_loader, ref_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, log_interval)
