@@ -85,15 +85,28 @@ class TripletFolder(Dataset):
             self.train_labels = folder.targets
             self.train_data = [Image.open(s[0]) for s in self.dataset.samples]
             self.labels_set = set(self.train_labels)
-            self.label_to_indices = {label: np.where(np.array(self.train_labels)==label)[0]
-                                        for label in self.labels_set}
-            
+            self.label_to_indices = {label: np.where(np.array(self.train_labels) == label)[0]
+                                     for label in self.labels_set}
+            crime_train_data = []
+            crime_train_labels = []
+            for k, v in self.label_to_indices.items():
+                if len(v) != 1:
+                    for idx in v:
+                        crime_train_data.append(self.train_data[idx])
+                        crime_train_labels.append(k)
+                else:
+                    self.labels_set.remove(k)
+            self.train_data = crime_train_data
+            self.train_labels = crime_train_labels
+            self.label_to_indices = {label: np.where(np.array(self.train_labels) == label)[0]
+                                     for label in self.labels_set}
+
         else:
             self.test_labels = self.dataset.targets
             self.test_data = [Image.open(s[0]) for s in self.dataset.samples]
             self.labels_set = set(self.test_labels)
             self.label_to_indices = {label: np.where(np.array(self.test_labels)==label)[0]
-                                        for label in self.labels_set}
+                                     for label in self.labels_set}
             
             random_state = np.random.RandomState(29)
             triplets = [[i,
@@ -110,9 +123,9 @@ class TripletFolder(Dataset):
         if self.train:
             img1, label1 = self.train_data[index], self.train_labels[index]
             positive_index = index
-            if len(self.label_to_indices[label1]) != 1:
-                while positive_index == index:
-                    positive_index = np.random.choice(self.label_to_indices[label1])
+            assert(len(self.label_to_indices[label1]) >= 2)
+            while positive_index == index:
+                positive_index = np.random.choice(self.label_to_indices[label1])
             negative_label = np.random.choice(list(self.labels_set - set([label1])))
             negative_index = np.random.choice(self.label_to_indices[negative_label])
             img2 = self.train_data[positive_index]
@@ -127,6 +140,8 @@ class TripletFolder(Dataset):
             img3 = self.transform(img3)
         return (img1, img2, img3), []
     def __len__(self):
+        if self.train:
+            return len(self.train_data)
         return len(self.dataset)
 class TripletMNIST(Dataset):
     """

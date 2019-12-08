@@ -12,6 +12,7 @@ from trainer import fit
 import numpy as np
 cuda = torch.cuda.is_available()
 
+print(cuda)
 import matplotlib
 import matplotlib.pyplot as plt
 from networks import EmbeddingNet, ClassificationNet
